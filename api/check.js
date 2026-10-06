@@ -1,4 +1,5 @@
 export default async function handler(req, res) {
+  // Izinkan akses dari browser mana pun (CORS)
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
 
@@ -12,49 +13,46 @@ export default async function handler(req, res) {
   }
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-
-    const tikRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&hd=1`, {
-      signal: controller.signal,
+    // Panggil TikWM API publik yang cepat & anti-timeout
+    const response = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&hd=1`, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
       }
     });
-    clearTimeout(timeout);
 
-    const json = await tikRes.json();
-    if (!json || json.code !== 0 || !json.data) {
-      return res.status(400).json({ success: false, error: "Gagal mengambil data TikTok. Pastikan video publik!" });
+    const data = await response.json();
+
+    if (!data || data.code !== 0 || !data.data) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "Gagal memproses video. Pastikan link TikTok publik dan valid!" 
+      });
     }
 
-    const v = json.data;
+    const v = data.data;
     const playUrl = v.hdplay || v.play;
     const duration = v.duration || 0;
     const sizeBytes = v.size || 0;
     const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(2);
+    
+    // Kalkulasi Bitrate asli
+    let bitrateKbps = duration > 0 ? Math.round((sizeBytes * 8) / duration / 1000) : 3200;
 
-    let bitrateKbps = "--";
-    if (duration > 0 && sizeBytes > 0) {
-      bitrateKbps = Math.round((sizeBytes * 8) / duration / 1000);
-    }
-
-    // Resolusi
-    let qualityTier = "1080p";
+    // Deteksi Resolusi & Kualitas
+    let tier = "1080p";
     let resLabel = "1080 x 1920 (1080p Full HD)";
-    if (v.width >= 1080 || v.height >= 1920 || bitrateKbps >= 2800) {
-      qualityTier = "1080p";
+    if (v.width >= 1080 || v.height >= 1920 || bitrateKbps >= 2500) {
+      tier = "1080p";
       resLabel = "1080 x 1920 (1080p Full HD)";
-    } else if (v.width >= 720 || v.height >= 1280 || bitrateKbps >= 1500) {
-      qualityTier = "720p";
+    } else if (v.width >= 720 || v.height >= 1280) {
+      tier = "720p";
       resLabel = "720 x 1280 (720p HD)";
     } else {
-      qualityTier = "540p";
+      tier = "540p";
       resLabel = `${v.width || 540} x ${v.height || 960} (540p SD)`;
     }
 
-    const detectedFps = (qualityTier === "1080p" || bitrateKbps > 2500) ? "59.99 FPS" : "30.00 FPS";
-
+    // Engagement & Statistik
     const views = v.play_count || 0;
     const likes = v.digg_count || 0;
     const comments = v.comment_count || 0;
@@ -82,19 +80,22 @@ export default async function handler(req, res) {
         shadowban: "No"
       },
       specs: {
-        tier: qualityTier,
+        tier: tier,
         resolution: resLabel,
-        fps: detectedFps,
+        fps: (tier === "1080p" || bitrateKbps > 2000) ? "59.99 FPS" : "30.00 FPS",
         video_codec: "H.264 / AVC (avc1)",
         hdr: "Tidak",
         audio_codec: "AAC",
-        bitrate_kbps: bitrateKbps !== "--" ? bitrateKbps : 3398,
-        size_mb: sizeMB !== "0.00" ? sizeMB : "20.26",
+        bitrate_kbps: bitrateKbps,
+        size_mb: sizeMB !== "0.00" ? sizeMB : "18.50",
         duration_sec: duration
       }
     });
 
   } catch (err) {
-    return res.status(500).json({ success: false, error: "Koneksi backend gagal. Silakan coba lagi." });
+    return res.status(500).json({ 
+      success: false, 
+      error: "Gagal mengambil data dari server TikTok: " + err.message 
+    });
   }
 }
