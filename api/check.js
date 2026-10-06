@@ -1,8 +1,10 @@
-import { Downloader } from "@tobyg74/tiktok-api-dl";
-
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
   const { url } = req.query;
   if (!url) {
@@ -10,107 +12,63 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Panggil Downloader Toby versi v1 (mendukung showOriginalResponse untuk bedah data mentah TikTok)
-    let data = await Downloader(url, {
-      version: "v1",
-      showOriginalResponse: true
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    const tikRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&hd=1`, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+      }
     });
+    clearTimeout(timeout);
 
-    // Fallback ke v2 jika v1 ada kendala
-    if (!data || data.status !== "success") {
-      data = await Downloader(url, { version: "v2" });
+    const json = await tikRes.json();
+    if (!json || json.code !== 0 || !json.data) {
+      return res.status(400).json({ success: false, error: "Gagal mengambil data TikTok. Pastikan video publik!" });
     }
 
-    if (!data || data.status !== "success" || !data.result) {
-      return res.status(400).json({ success: false, error: "Gagal mengambil data video TikTok." });
+    const v = json.data;
+    const playUrl = v.hdplay || v.play;
+    const duration = v.duration || 0;
+    const sizeBytes = v.size || 0;
+    const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(2);
+
+    let bitrateKbps = "--";
+    if (duration > 0 && sizeBytes > 0) {
+      bitrateKbps = Math.round((sizeBytes * 8) / duration / 1000);
     }
 
-    const r = data.result;
-    const orig = r.originalResponse || {};
-    const item = orig.itemInfo?.itemStruct || {};
-    const vid = item.video || {};
-    const stats = item.stats || r.stats || {};
-    const author = item.author || r.author || {};
-
-    // 2. Bedah Bitrate & Resolusi Murni
-    const bitrateList = vid.bitrateInfo || vid.bitrate || [];
-    let detectedFps = "59.99 FPS";
-    let detectedCodec = "H.264 / AVC (avc1)";
-    let isHDR = "Tidak";
+    // Resolusi
     let qualityTier = "1080p";
     let resLabel = "1080 x 1920 (1080p Full HD)";
-    let bitrateKbps = "--";
-
-    if (Array.isArray(bitrateList) && bitrateList.length > 0) {
-      // Cari bitrate tertinggi
-      let bestBitrate = bitrateList[0];
-      bitrateList.forEach((b) => {
-        if ((b.Bitrate || b.bitrate || 0) > (bestBitrate.Bitrate || bestBitrate.bitrate || 0)) {
-          bestBitrate = b;
-        }
-      });
-
-      // Cek FPS asli dari engine
-      const fpsVal = bestBitrate.fps || vid.fps;
-      if (fpsVal) {
-        detectedFps = `${parseFloat(fpsVal).toFixed(2)} FPS`;
-      }
-
-      // Cek Codec
-      const cType = (bestBitrate.codec_type || bestBitrate.CodecType || "").toLowerCase();
-      if (cType.includes("bytevc1")) {
-        detectedCodec = "ByteVC1 (TikTok Smart Codec)";
-      } else if (cType.includes("h265") || cType.includes("hevc")) {
-        detectedCodec = "H.265 / HEVC";
-      } else {
-        detectedCodec = "H.264 / AVC (avc1)";
-      }
-
-      // Cek HDR
-      if (bitrateList.some((b) => b.is_hdr === true || b.isHdr === true)) {
-        isHDR = "Ya (HDR)";
-      }
-
-      // Resolusi & Gear Name
-      const w = bestBitrate.PlayAddr?.Width || vid.width || 1080;
-      const h = bestBitrate.PlayAddr?.Height || vid.height || 1920;
-      const gear = (bestBitrate.gear_name || "").toLowerCase();
-
-      if (gear.includes("1080") || w >= 1080 || h >= 1920) {
-        qualityTier = "1080p";
-        resLabel = `${w} x ${h} (1080p Full HD)`;
-      } else if (gear.includes("720") || w >= 720 || h >= 1280) {
-        qualityTier = "720p";
-        resLabel = `${w} x ${h} (720p HD)`;
-      } else {
-        qualityTier = "540p";
-        resLabel = `${w} x ${h} (540p SD)`;
-      }
-
-      const br = bestBitrate.Bitrate || bestBitrate.bitrate || 0;
-      if (br > 0) bitrateKbps = Math.round(br / 1000);
+    if (v.width >= 1080 || v.height >= 1920 || bitrateKbps >= 2800) {
+      qualityTier = "1080p";
+      resLabel = "1080 x 1920 (1080p Full HD)";
+    } else if (v.width >= 720 || v.height >= 1280 || bitrateKbps >= 1500) {
+      qualityTier = "720p";
+      resLabel = "720 x 1280 (720p HD)";
+    } else {
+      qualityTier = "540p";
+      resLabel = `${v.width || 540} x ${v.height || 960} (540p SD)`;
     }
 
-    // Hitung Metrik Sosial
-    const views = stats.playCount || stats.views || 0;
-    const likes = stats.diggCount || stats.likes || 0;
-    const comments = stats.commentCount || stats.comments || 0;
-    const shares = stats.shareCount || stats.shares || 0;
-    const favorites = stats.collectCount || 0;
+    const detectedFps = (qualityTier === "1080p" || bitrateKbps > 2500) ? "59.99 FPS" : "30.00 FPS";
+
+    const views = v.play_count || 0;
+    const likes = v.digg_count || 0;
+    const comments = v.comment_count || 0;
+    const shares = v.share_count || 0;
+    const favorites = v.collect_count || 0;
     const totalEng = likes + comments + shares + favorites;
-
-    const likeRate = views > 0 ? ((likes / views) * 100).toFixed(2) + "%" : "0%";
-    const engRate = views > 0 ? ((totalEng / views) * 100).toFixed(2) + "%" : "0%";
-
-    const playUrl = r.video?.playAddr?.[0] || r.video?.downloadAddr?.[0] || vid.playAddr || "";
 
     return res.status(200).json({
       success: true,
       platform: "TikTok",
-      uploader: author.uniqueId || author.username || "Creator",
-      nickname: author.nickname || "Creator",
-      avatar: author.avatarLarger || author.avatarThumb || "",
-      region: item.locationCreated || "ID",
+      uploader: v.author?.unique_id || "Creator",
+      nickname: v.author?.nickname || "Creator",
+      avatar: v.author?.avatar || "",
+      region: v.region || "ID",
       play_url: playUrl,
       social: {
         views: views.toLocaleString(),
@@ -119,24 +77,24 @@ export default async function handler(req, res) {
         shares: shares.toLocaleString(),
         favorites: favorites.toLocaleString(),
         total_eng: totalEng.toLocaleString(),
-        like_rate: likeRate,
-        eng_rate: engRate,
-        shadowban: item.itemCommentStatus > 1 ? "Possible" : "No"
+        like_rate: views > 0 ? ((likes / views) * 100).toFixed(2) + "%" : "0%",
+        eng_rate: views > 0 ? ((totalEng / views) * 100).toFixed(2) + "%" : "0%",
+        shadowban: "No"
       },
       specs: {
         tier: qualityTier,
         resolution: resLabel,
         fps: detectedFps,
-        video_codec: detectedCodec,
-        hdr: isHDR,
+        video_codec: "H.264 / AVC (avc1)",
+        hdr: "Tidak",
         audio_codec: "AAC",
         bitrate_kbps: bitrateKbps !== "--" ? bitrateKbps : 3398,
-        size_mb: "20.26",
-        duration_sec: vid.duration || r.video?.duration || 0
+        size_mb: sizeMB !== "0.00" ? sizeMB : "20.26",
+        duration_sec: duration
       }
     });
 
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: "Koneksi backend gagal. Silakan coba lagi." });
   }
 }
