@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/check", "destination": "/api/check.py" },
+    { "source": "/(.*)", "destination": "/public/$1" }
+  ]
+}
