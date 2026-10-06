@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title id="pageTitle">Universal Stream & Bitrate Inspector</title>
+  <title>TikTok Video Stream & Bitrate Inspector</title>
   <style>
     :root {
       --bg: #07080a;
@@ -14,8 +14,9 @@
       --muted: #8e9299;
       --brand-red: #ff3b3b;
       --brand-glow: rgba(255, 59, 59, 0.45);
-      --white-pure: #f3f4f6;
       --badge-green: #2ecc71;
+      --badge-blue: #3498db;
+      --badge-gold: #f39c12;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -46,7 +47,6 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      position: relative;
       padding-top: 8px;
     }
 
@@ -130,14 +130,8 @@
       font-size: 11.5px;
       font-weight: 800;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      transition: transform .15s, opacity .15s;
       box-shadow: 0 4px 10px var(--brand-glow);
     }
-
-    button.btn-inspect:hover { opacity: .92; transform: translateY(-1px); }
 
     .loading-status {
       display: none;
@@ -149,15 +143,14 @@
     }
 
     .lightning-wrap {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
       width: 34px;
       height: 34px;
       border-radius: 50%;
       background: rgba(255, 59, 59, 0.15);
       border: 1px solid var(--brand-red);
-      animation: lightningPulse 1s infinite alternate ease-in-out;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .lightning-icon {
@@ -166,52 +159,12 @@
       fill: var(--brand-red);
     }
 
-    @keyframes lightningPulse {
-      0% { transform: scale(0.94); box-shadow: 0 0 6px rgba(255, 59, 59, 0.3); }
-      100% { transform: scale(1.06); box-shadow: 0 0 15px var(--brand-glow); }
-    }
-
-    .loading-text {
-      font-size: 10.5px;
-      font-weight: 700;
-      color: #e5e7eb;
-    }
-
-    .progress-bar-container {
-      width: 100%;
-      height: 3.5px;
-      background: #1c1d22;
-      border-radius: 99px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .progress-bar-glow {
-      position: absolute;
-      top: 0;
-      left: 0;
-      height: 100%;
-      width: 40%;
-      background: linear-gradient(90deg, transparent, var(--brand-red), #ff7b7b, transparent);
-      border-radius: 99px;
-      animation: progressGlow 1.2s infinite cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    @keyframes progressGlow {
-      0% { left: -40%; }
-      100% { left: 100%; }
-    }
+    .loading-text { font-size: 10.5px; font-weight: 700; color: #e5e7eb; }
 
     .result-panel {
       display: none;
       flex-direction: column;
       gap: 12px;
-      animation: fadeIn .3s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     .card {
@@ -225,37 +178,41 @@
     .creator-bar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 10px;
       margin-bottom: 10px;
     }
 
-    .creator-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .creator-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      object-fit: cover;
     }
 
-    .creator-info h3 { font-size: 12.5px; font-weight: 700; }
-    .creator-info span { font-size: 10px; color: var(--muted); }
+    .creator-info h3 { font-size: 13px; font-weight: 700; }
+    .creator-info span { font-size: 10.5px; color: var(--muted); }
 
     .status-pills {
       display: flex;
       flex-wrap: wrap;
-      gap: 4px;
-      margin-bottom: 8px;
+      gap: 5px;
+      margin-bottom: 10px;
     }
 
     .pill {
-      font-size: 9px;
+      font-size: 9.5px;
       font-weight: 800;
-      padding: 3px 8px;
+      padding: 4px 9px;
       border-radius: 99px;
       background: #1f2127;
       border: 1px solid var(--line);
       color: #fff;
     }
 
-    .pill.green { background: rgba(46, 204, 113, 0.12); border-color: rgba(46, 204, 113, 0.35); color: var(--badge-green); }
+    .pill.green { background: rgba(46, 204, 113, 0.15); border-color: rgba(46, 204, 113, 0.4); color: var(--badge-green); }
+    .pill.blue { background: rgba(52, 152, 219, 0.15); border-color: rgba(52, 152, 219, 0.4); color: var(--badge-blue); }
+    .pill.gold { background: rgba(243, 156, 18, 0.15); border-color: rgba(243, 156, 18, 0.4); color: var(--badge-gold); }
 
     .video-preview {
       width: 100%;
@@ -267,43 +224,52 @@
       object-fit: contain;
     }
 
-    .action-row {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 6px;
-      margin-top: 10px;
-    }
-
     .btn-action {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 5px;
-      padding: 9px 10px;
+      padding: 10px;
+      margin-top: 10px;
       border-radius: 9px;
-      font-size: 10.5px;
+      font-size: 11px;
       font-weight: 700;
       text-decoration: none;
-      border: 1px solid var(--line);
       background: linear-gradient(180deg, #ff3b3b, #d92424);
-      border-color: #ff5252;
       color: #fff;
-      cursor: pointer;
       box-shadow: 0 4px 10px var(--brand-glow);
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: #cbd5e1;
+      margin: 10px 0 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .section-title::before {
+      content: '';
+      width: 3px;
+      height: 10px;
+      background: var(--brand-red);
+      border-radius: 2px;
     }
 
     .grid-metrics {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 6px;
-      margin-top: 8px;
     }
 
     .metric-box {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 9px;
-      padding: 9px;
+      padding: 8px 10px;
       display: flex;
       flex-direction: column;
       gap: 2px;
@@ -326,7 +292,7 @@
     .metric-value.highlight-red { color: var(--brand-red); }
 
     .verdict-box {
-      margin-top: 10px;
+      margin: 10px 0;
       padding: 9px 11px;
       border-radius: 9px;
       background: rgba(255, 59, 59, 0.08);
@@ -334,109 +300,6 @@
       font-size: 10.5px;
       color: #ffe0e0;
       line-height: 1.35;
-    }
-
-    .info-card {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-    }
-
-    .info-card h2 {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      color: #e5e7eb;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .info-card h2::before {
-      content: '';
-      display: inline-block;
-      width: 2.5px;
-      height: 11px;
-      background: var(--brand-red);
-      border-radius: 2px;
-      box-shadow: 0 0 5px var(--brand-red);
-    }
-
-    .recommendation-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .rec-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 7px;
-      font-size: 10.5px;
-      color: var(--muted);
-      line-height: 1.4;
-    }
-
-    .rec-bullet {
-      min-width: 4px;
-      height: 4px;
-      background: var(--brand-red);
-      border-radius: 50%;
-      margin-top: 4.5px;
-      box-shadow: 0 0 5px var(--brand-red);
-    }
-
-    .rec-item strong { color: #fff; }
-
-    .method-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      margin-top: 4px;
-    }
-
-    .method-tag {
-      font-size: 9.5px;
-      font-weight: 700;
-      padding: 3px 8px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      color: #cbd5e1;
-    }
-
-    .social-footer {
-      display: flex;
-      justify-content: center;
-      gap: 7px;
-      margin-top: 2px;
-    }
-
-    .social-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 5px 11px;
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 99px;
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--text);
-      text-decoration: none;
-      transition: all .2s ease;
-    }
-
-    .social-pill svg {
-      width: 10px;
-      height: 10px;
-      fill: var(--brand-red);
     }
 
     .error-box {
@@ -448,28 +311,20 @@
       border-radius: 9px;
       font-size: 10.5px;
     }
-
-    footer {
-      text-align: center;
-      font-size: 9.5px;
-      color: var(--muted);
-      margin-top: 8px;
-      opacity: 0.7;
-    }
   </style>
 </head>
 <body>
 
   <div class="container">
     <header>
-      <div class="badge-logo"><i></i> Multi-Platform Stream Inspector</div>
-      <h1>Stream Checker Pro</h1>
-      <p>Analisis spesifikasi teknis resolusi, true framerate (FPS), codec ID, dan estimasi bitrate.</p>
+      <div class="badge-logo"><i></i> Stream Quality Inspector</div>
+      <h1>TikTok Stream Checker</h1>
+      <p>Analisis spesifikasi teknis resolusi (hingga 4K), true FPS, bitrate stream, dan metrik engagement.</p>
     </header>
 
     <div class="input-card">
       <div class="input-group">
-        <input type="text" id="videoUrlInput" placeholder="Tempel URL Video (TikTok, Reels, Shorts, X...)" autocomplete="off">
+        <input type="text" id="videoUrlInput" placeholder="Tempel URL Video TikTok (https://vt.tiktok.com/...)" autocomplete="off">
         <button class="btn-inspect" id="btnCheck">Inspect</button>
       </div>
 
@@ -478,9 +333,6 @@
           <svg class="lightning-icon" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
         </div>
         <span class="loading-text">Sedang membedah metadata biner stream...</span>
-        <div class="progress-bar-container">
-          <div class="progress-bar-glow"></div>
-        </div>
       </div>
 
       <div class="error-box" id="errorBox"></div>
@@ -489,50 +341,83 @@
     <!-- RESULT PANEL -->
     <div class="result-panel" id="resultPanel">
       <div class="card">
-        <video class="video-preview" id="videoPlayer" controls playsinline loop></video>
-        <div class="action-row">
-          <a href="#" class="btn-action" id="dlVideoBtn" target="_blank" download="stream-master.mp4">
-            ⬇ Unduh Master MP4
-          </a>
-        </div>
-      </div>
-
-      <div class="card">
         <div class="creator-bar">
-          <div class="creator-header">
-            <div class="creator-info">
-              <h3 id="nicknameText">Creator</h3>
-              <span id="platformText">Platform Stream</span>
-            </div>
+          <img class="creator-avatar" id="avatarImg" src="" alt="Avatar">
+          <div class="creator-info">
+            <h3 id="nicknameText">Creator</h3>
+            <span id="usernameText">@username</span>
           </div>
-          <span style="font-size: 9.5px; color: var(--brand-red); font-weight: 800;">● ENGINE ONLINE</span>
         </div>
 
         <div class="status-pills">
+          <span class="pill" id="pillHdr">HDR: Tidak</span>
+          <span class="pill blue" id="pillResTop">1080p</span>
+          <span class="pill green" id="pillFpsTop">59.99 FPS</span>
+          <span class="pill blue" id="pillRegion">ID - Indonesia</span>
+          <span class="pill green" id="pillShadow">Shadow ban: No</span>
           <span class="pill" id="pillCodec">Codec: --</span>
-          <span class="pill green" id="pillMethod">Status: Valid</span>
         </div>
 
+        <video class="video-preview" id="videoPlayer" controls playsinline loop></video>
+        <a href="#" class="btn-action" id="dlVideoBtn" target="_blank" download="master-video.mp4">
+          ⬇ Unduh Master MP4
+        </a>
+      </div>
+
+      <div class="card">
         <div class="verdict-box" id="verdictBox">
-          Mengevaluasi kualitas video...
+          Mengevaluasi kualitas stream...
         </div>
 
+        <div class="section-title">Performa Interaksi</div>
+        <div class="grid-metrics">
+          <div class="metric-box">
+            <span class="metric-label">Penayangan (Views)</span>
+            <span class="metric-value highlight-red" id="mViews">--</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">Suka (Likes)</span>
+            <span class="metric-value" id="mLikes">--</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">Komentar</span>
+            <span class="metric-value" id="mComments">--</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">Dibagikan (Shares)</span>
+            <span class="metric-value" id="mShares">--</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">Disimpan (Favorites)</span>
+            <span class="metric-value" id="mFavs">--</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">Total Engagement</span>
+            <span class="metric-value highlight-red" id="mTotalEng">--</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">Like Rate</span>
+            <span class="metric-value" id="mLikeRate">--</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">Engagement Rate</span>
+            <span class="metric-value" id="mEngRate">--</span>
+          </div>
+        </div>
+
+        <div class="section-title">Teknis Video Stream</div>
         <div class="grid-metrics">
           <div class="metric-box">
             <span class="metric-label">Resolusi Output</span>
             <span class="metric-value highlight-red" id="resText">--</span>
           </div>
           <div class="metric-box">
-            <span class="metric-label">True FPS</span>
+            <span class="metric-label">True Frame Rate</span>
             <span class="metric-value highlight-red" id="fpsText">--</span>
           </div>
           <div class="metric-box">
             <span class="metric-label">Estimasi Bitrate</span>
             <span class="metric-value highlight-red" id="bitrateText">--</span>
-          </div>
-          <div class="metric-box">
-            <span class="metric-label">Audio Codec</span>
-            <span class="metric-value" id="acodecText">--</span>
           </div>
           <div class="metric-box">
             <span class="metric-label">Ukuran Berkas</span>
@@ -542,43 +427,13 @@
             <span class="metric-label">Durasi Video</span>
             <span class="metric-value" id="durationText">--</span>
           </div>
+          <div class="metric-box">
+            <span class="metric-label">Audio Codec</span>
+            <span class="metric-value" id="acodecText">AAC</span>
+          </div>
         </div>
       </div>
     </div>
-
-    <!-- KOTAK 1: KLASIFIKASI KUALITAS -->
-    <div class="info-card">
-      <h2>Klasifikasi Kualitas & Performa Perangkat</h2>
-      <div class="recommendation-list">
-        <div class="rec-item">
-          <div class="rec-bullet"></div>
-          <div><strong>High Quality (2K - 4K):</strong> Resolusi sangat tinggi yang berisiko memicu lagging atau buffering pada perangkat audiens.</div>
-        </div>
-        <div class="rec-item">
-          <div class="rec-bullet"></div>
-          <div><strong>Optimal (1080p + 60 FPS):</strong> Konfigurasi paling stabil dan tajam tanpa kendala lag, kisaran bitrate optimal di angka 10 - 15 MB.</div>
-        </div>
-        <div class="rec-item">
-          <div class="rec-bullet"></div>
-          <div><strong>Compressed / Non-Method (540p):</strong> Kualitas terkompresi otomatis oleh server bawaan sistem aplikasi.</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="social-footer">
-      <a href="https://www.tiktok.com/@zx.image" target="_blank" rel="noopener noreferrer" class="social-pill">
-        <svg viewBox="0 0 24 24"><path d="M12.52.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.4.08-2.8-.3-3.97-1.03-1.94-1.21-3.36-3.31-3.7-5.57-.1-.63-.11-1.26-.07-1.89.3-3.14 2.97-5.75 6.1-6.19.03 1.48-.04 2.96-.04 4.44-1 .32-1.8 1.24-1.94 2.28-.13 1.04.27 2.09 1.04 2.64.84.61 2.03.72 2.93.27 1.05-.5 1.72-1.6 1.71-2.76.01-4.99-.03-9.98.02-14.96Z"/></svg>
-        @zx.image
-      </a>
-      <a href="https://instagram.com/z.e.x.l.l.y" target="_blank" rel="noopener noreferrer" class="social-pill">
-        <svg viewBox="0 0 24 24"><path d="M12 2c2.72 0 3.06.01 4.12.06 1.06.05 1.79.22 2.43.47.66.26 1.21.6 1.76 1.15.55.55.89 1.1 1.15 1.76.25.64.42 1.37.47 2.43.05 1.06.06 1.4.06 4.12s-.01 3.06-.06 4.12c-.05 1.06-.22 1.79-.47 2.43-.26.66-.6 1.21-1.15 1.76-.55.55-1.1.89-1.76 1.15-.64.25-1.37.42-2.43.47C8.94 2.01 9.28 2 12 2zm0 5a5 5 0 100 10 5 5 0 000-10zm0 8.2a3.2 3.2 0 110-6.4 3.2 3.2 0 010 6.4zm5.4-8.4a1.2 1.2 0 100-2.4 1.2 1.2 0 000 2.4z"/></svg>
-        @z.e.x.l.l.y
-      </a>
-    </div>
-
-    <footer>
-      <span>Multi-Platform Stream Inspector • Powered by yt-dlp & Vercel</span>
-    </footer>
   </div>
 
   <script>
@@ -589,15 +444,10 @@
     const resultPanel = document.getElementById("resultPanel");
     const player = document.getElementById("videoPlayer");
 
-    player.addEventListener('ended', () => {
-      player.currentTime = 0;
-      player.play().catch(() => {});
-    });
-
     btnCheck.addEventListener("click", async () => {
       const rawUrl = videoUrlInput.value.trim();
       if (!rawUrl) {
-        showError("Harap masukkan tautan video yang valid.");
+        showError("Harap tempel tautan video TikTok terlebih dahulu!");
         return;
       }
 
@@ -615,30 +465,50 @@
         }
 
         const s = data.specs;
+        const soc = data.social;
 
-        document.getElementById("nicknameText").textContent = data.uploader || "Creator";
-        document.getElementById("platformText").textContent = data.platform || "Platform Stream";
+        document.getElementById("nicknameText").textContent = data.nickname;
+        document.getElementById("usernameText").textContent = "@" + data.uploader;
+        if (data.avatar) document.getElementById("avatarImg").src = data.avatar;
+
+        // Pills Atas
+        document.getElementById("pillHdr").textContent = `HDR: ${s.hdr}`;
+        document.getElementById("pillResTop").textContent = s.tier;
+        document.getElementById("pillFpsTop").textContent = s.fps;
+        document.getElementById("pillRegion").textContent = `${data.region} - Region`;
+        document.getElementById("pillShadow").textContent = `Shadow ban: ${soc.shadowban}`;
+        document.getElementById("pillCodec").textContent = `Codec: ${s.video_codec}`;
+
+        // Metrik Sosial
+        document.getElementById("mViews").textContent = soc.views;
+        document.getElementById("mLikes").textContent = soc.likes;
+        document.getElementById("mComments").textContent = soc.comments;
+        document.getElementById("mShares").textContent = soc.shares;
+        document.getElementById("mFavs").textContent = soc.favorites;
+        document.getElementById("mTotalEng").textContent = soc.total_eng;
+        document.getElementById("mLikeRate").textContent = soc.like_rate;
+        document.getElementById("mEngRate").textContent = soc.eng_rate;
+
+        // Metrik Teknis
         document.getElementById("resText").textContent = s.resolution;
         document.getElementById("fpsText").textContent = s.fps;
-        document.getElementById("pillCodec").textContent = `Codec: ${s.video_codec}`;
-        document.getElementById("acodecText").textContent = s.audio_codec;
-        document.getElementById("bitrateText").textContent = `${s.bitrate_kbps} kbps`;
+        document.getElementById("bitrateText").textContent = s.bitrate_kbps !== "--" ? `${s.bitrate_kbps} kbps` : "--";
         document.getElementById("sizeText").textContent = `${s.size_mb} MB`;
         document.getElementById("durationText").textContent = `${s.duration_sec}s`;
-        
+        document.getElementById("acodecText").textContent = s.audio_codec;
+
         if (data.play_url) {
           document.getElementById("dlVideoBtn").href = data.play_url;
           player.src = data.play_url;
           player.play().catch(() => {});
         }
 
-        // Evaluasi Kualitas Sederhana
         const verdictBox = document.getElementById("verdictBox");
         const fpsNum = parseFloat(s.fps) || 0;
         if (fpsNum >= 58) {
-          verdictBox.innerHTML = `🔴 <strong>Tembus 60 FPS Murni!</strong> Video mempertahankan fluiditas frame rate tinggi (${s.fps}) dengan codec ${s.video_codec}.`;
+          verdictBox.innerHTML = `🔴 <strong>Tembus 60 FPS Murni!</strong> Video mempertahankan fluiditas frame rate tinggi (${s.fps}) dengan resolusi ${s.tier}.`;
         } else {
-          verdictBox.innerHTML = `🔴 <strong>Stream Standar (${s.fps})</strong>. Format stream terdeteksi berjalan pada rate standar platform.`;
+          verdictBox.innerHTML = `🔴 <strong>Stream Standar (${s.fps})</strong>. Video berjalan pada frame rate standar dengan resolusi ${s.tier}.`;
         }
 
         loadingStatus.style.display = "none";
@@ -658,5 +528,4 @@
     }
   </script>
 </body>
-  </html>
-  
+</html>
