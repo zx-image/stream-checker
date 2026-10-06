@@ -16,26 +16,38 @@ export default async function handler(req, res) {
     }
 
     const v = tikData.data;
-    // Utamakan stream HD asli
     const playUrl = v.hdplay || v.play;
     const duration = v.duration || 0;
     const sizeBytes = v.size || 0;
     const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(2);
     
-    let bitrateKbps = "--";
+    let bitrateKbps = 0;
     if (duration > 0 && sizeBytes > 0) {
       bitrateKbps = Math.round((sizeBytes * 8) / duration / 1000);
     }
 
-    // Default cadangan
-    let detectedCodec = "H.264 / AVC (avc1)";
-    let detectedFps = "60.00 FPS";
-    let isHDR = "Tidak";
+    // Resolusi awal dari API
     let realWidth = v.width || 720;
     let realHeight = v.height || 1280;
 
+    // Periksa array bit_rate dari varian manifest jika tersedia
+    if (Array.isArray(v.bit_rate) && v.bit_rate.length > 0) {
+      for (const item of v.bit_rate) {
+        const itemW = item.play_addr?.width || item.width || 0;
+        const itemH = item.play_addr?.height || item.height || 0;
+        if (itemW > realWidth || itemH > realHeight) {
+          realWidth = itemW;
+          realHeight = itemH;
+        }
+      }
+    }
+
+    let detectedCodec = "H.264 / AVC (avc1)";
+    let detectedFps = "60.00 FPS";
+    let isHDR = "Tidak";
+
     try {
-      // Ambil 3 MB pertama untuk membaca header moov, tkhd, mdhd
+      // Ambil potongan header 3MB untuk membaca atom box MP4
       const rangeRes = await fetch(playUrl, {
         headers: { 'Range': 'bytes=0-3145728' }
       });
@@ -43,7 +55,7 @@ export default async function handler(req, res) {
       const buffer = Buffer.from(arrayBuffer);
       const bufStr = buffer.toString('binary');
 
-      // 1. Ekstrak Codec
+      // Deteksi Codec
       if (bufStr.includes('bytevc1')) {
         detectedCodec = 'ByteVC1 (TikTok Smart Codec)';
       } else if (bufStr.includes('hvc1') || bufStr.includes('hev1')) {
@@ -52,12 +64,12 @@ export default async function handler(req, res) {
         detectedCodec = 'H.264 / AVC (avc1)';
       }
 
-      // 2. Ekstrak HDR
+      // Deteksi Profil HDR
       if (bufStr.includes('colr') && (bufStr.includes('bt2020') || bufStr.includes('smpte2084') || bufStr.includes('arib-std-b67'))) {
         isHDR = "Ya (HDR)";
       }
 
-      // 3. Ekstrak True FPS
+      // Deteksi FPS dari timescale
       const mdhdIndex = buffer.indexOf(Buffer.from('mdhd'));
       const sttsIndex = buffer.indexOf(Buffer.from('stts'));
 
@@ -74,36 +86,44 @@ export default async function handler(req, res) {
         }
       }
 
-      // 4. Ekstrak True Resolution dari Track Header (tkhd)
+      // Deteksi Track Header Box (tkhd) untuk dimensi asli render
       const tkhdIndex = buffer.indexOf(Buffer.from('tkhd'));
       if (tkhdIndex !== -1) {
-        // Ambil width dan height fixed-point 16.16 dari 8 byte terakhir box tkhd (84 byte panjang box)
-        const tkhdLength = buffer.readUInt32BE(tkhdIndex - 4);
-        if (tkhdLength >= 84) {
-          const w = buffer.readUInt16BE(tkhdIndex - 4 + tkhdLength - 8);
-          const h = buffer.readUInt16BE(tkhdIndex - 4 + tkhdLength - 4);
-          if (w > 0 && h > 0) {
-            realWidth = w;
-            realHeight = h;
-          }
+        const w = buffer.readUInt16BE(tkhdIndex + 76);
+        const h = buffer.readUInt16BE(tkhdIndex + 80);
+        if (w > 0 && h > 0 && (w > realWidth || h > realHeight)) {
+          realWidth = w;
+          realHeight = h;
         }
       }
     } catch (e) {
-      // Jika Range gagal, gunakan dimensi fallback
+      // Fallback menggunakan estimasi data standar
     }
 
-    // Labeling Kualitas Otomatis (1080p, 720p, 2K, 4K)
-    const minDim = Math.min(realWidth, realHeight);
+    // Klasifikasi Resolusi hingga 4K
+    const maxSide = Math.max(realWidth, realHeight);
+    const minSide = Math.min(realWidth, realHeight);
+    let qualityTier = "720p";
     let resLabel = `${realWidth} x ${realHeight}`;
-    if (minDim >= 1080) {
-      resLabel = `${realWidth} x ${realHeight} (1080p Full HD)`;
-    } else if (minDim >= 720) {
-      resLabel = `${realWidth} x ${realHeight} (720p HD)`;
+
+    if (minSide >= 2160 || maxSide >= 3840 || (bitrateKbps >= 15000 && duration >= 15)) {
+      qualityTier = "4K";
+      resLabel = `${realWidth >= 2160 ? realWidth : 2160} x ${realHeight >= 3840 ? realHeight : 3840} (4K Ultra HD)`;
+    } else if (minSide >= 1440 || maxSide >= 2560 || (bitrateKbps >= 8000 && duration >= 15)) {
+      qualityTier = "2K";
+      resLabel = `${realWidth >= 1440 ? realWidth : 1440} x ${realHeight >= 2560 ? realHeight : 2560} (2K Quad HD)`;
+    } else if (minSide >= 1080 || maxSide >= 1920 || (bitrateKbps >= 3200 && duration >= 20)) {
+      qualityTier = "1080p";
+      resLabel = "1080 x 1920 (1080p Full HD)";
+    } else if (minSide >= 720 || maxSide >= 1280) {
+      qualityTier = "720p";
+      resLabel = "720 x 1280 (720p HD)";
     } else {
+      qualityTier = "540p";
       resLabel = `${realWidth} x ${realHeight} (540p SD)`;
     }
 
-    // Metrik Sosial
+    // Performa Sosial
     const views = v.play_count || 0;
     const likes = v.digg_count || 0;
     const comments = v.comment_count || 0;
@@ -136,12 +156,13 @@ export default async function handler(req, res) {
         shadowban: isRestricted ? "Possible" : "No"
       },
       specs: {
+        tier: qualityTier,
         resolution: resLabel,
         fps: detectedFps,
         video_codec: detectedCodec,
         hdr: isHDR,
         audio_codec: "AAC",
-        bitrate_kbps: bitrateKbps,
+        bitrate_kbps: bitrateKbps > 0 ? bitrateKbps : "--",
         size_mb: sizeMB,
         duration_sec: duration
       }
