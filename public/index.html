@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TikTok Video Stream & Bitrate Inspector</title>
+  <title>TikTok Stream & Bitrate Inspector</title>
   <style>
     :root {
       --bg: #07080a;
@@ -16,7 +16,6 @@
       --brand-glow: rgba(255, 59, 59, 0.45);
       --badge-green: #2ecc71;
       --badge-blue: #3498db;
-      --badge-gold: #f39c12;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -212,7 +211,6 @@
 
     .pill.green { background: rgba(46, 204, 113, 0.15); border-color: rgba(46, 204, 113, 0.4); color: var(--badge-green); }
     .pill.blue { background: rgba(52, 152, 219, 0.15); border-color: rgba(52, 152, 219, 0.4); color: var(--badge-blue); }
-    .pill.gold { background: rgba(243, 156, 18, 0.15); border-color: rgba(243, 156, 18, 0.4); color: var(--badge-gold); }
 
     .video-preview {
       width: 100%;
@@ -319,12 +317,12 @@
     <header>
       <div class="badge-logo"><i></i> Stream Quality Inspector</div>
       <h1>TikTok Stream Checker</h1>
-      <p>Analisis spesifikasi teknis resolusi (hingga 4K), true FPS, bitrate stream, dan metrik engagement.</p>
+      <p>Cek spesifikasi resolusi, true FPS, codec, dan engagement tanpa delay.</p>
     </header>
 
     <div class="input-card">
       <div class="input-group">
-        <input type="text" id="videoUrlInput" placeholder="Tempel URL Video TikTok (https://vt.tiktok.com/...)" autocomplete="off">
+        <input type="text" id="videoUrlInput" placeholder="Tempel URL TikTok (https://vt.tiktok.com/...)" autocomplete="off">
         <button class="btn-inspect" id="btnCheck">Inspect</button>
       </div>
 
@@ -332,7 +330,7 @@
         <div class="lightning-wrap">
           <svg class="lightning-icon" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
         </div>
-        <span class="loading-text">Sedang membedah metadata biner stream...</span>
+        <span class="loading-text">Sedang mengambil stream instan...</span>
       </div>
 
       <div class="error-box" id="errorBox"></div>
@@ -366,7 +364,7 @@
 
       <div class="card">
         <div class="verdict-box" id="verdictBox">
-          Mengevaluasi kualitas stream...
+          Status video...
         </div>
 
         <div class="section-title">Performa Interaksi</div>
@@ -471,9 +469,9 @@
         document.getElementById("usernameText").textContent = "@" + data.uploader;
         if (data.avatar) document.getElementById("avatarImg").src = data.avatar;
 
-        // Pills Atas
+        // Pills
         document.getElementById("pillHdr").textContent = `HDR: ${s.hdr}`;
-        document.getElementById("pillResTop").textContent = s.tier;
+        document.getElementById("pillResTop").textContent = s.tier || "1080p";
         document.getElementById("pillFpsTop").textContent = s.fps;
         document.getElementById("pillRegion").textContent = `${data.region} - Region`;
         document.getElementById("pillShadow").textContent = `Shadow ban: ${soc.shadowban}`;
@@ -506,9 +504,9 @@
         const verdictBox = document.getElementById("verdictBox");
         const fpsNum = parseFloat(s.fps) || 0;
         if (fpsNum >= 58) {
-          verdictBox.innerHTML = `🔴 <strong>Tembus 60 FPS Murni!</strong> Video mempertahankan fluiditas frame rate tinggi (${s.fps}) dengan resolusi ${s.tier}.`;
+          verdictBox.innerHTML = `🔴 <strong>Tembus 60 FPS Murni!</strong> Video mempertahankan fluiditas frame rate tinggi (${s.fps}) dengan resolusi ${s.tier || '1080p'}.`;
         } else {
-          verdictBox.innerHTML = `🔴 <strong>Stream Standar (${s.fps})</strong>. Video berjalan pada frame rate standar dengan resolusi ${s.tier}.`;
+          verdictBox.innerHTML = `🔴 <strong>Stream Standar (${s.fps})</strong>. Video berjalan pada frame rate standar dengan resolusi ${s.tier || 'Standar'}.`;
         }
 
         loadingStatus.style.display = "none";
